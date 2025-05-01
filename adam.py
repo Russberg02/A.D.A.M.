@@ -7,7 +7,6 @@ import math as m
 from PIL import Image
 import os
 from glob import glob
-import matplotlib.pyplot as plt
 
 st.set_page_config(layout="wide")
 st.title("Advanced corrodeD pipe structurAl integrity systeM (ADAM)")
