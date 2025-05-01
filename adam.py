@@ -11,6 +11,10 @@ from glob import glob
 st.set_page_config(layout="wide")
 st.title("Advanced corrodeD pipe structurAl integrity systeM (ADAM)")
 
+# IMAGE
+htp = "https://www.researchgate.net/profile/Changqing-Gong/publication/313456917/figure/fig1/AS:573308992266241@1513698923813/Schematic-illustration-of-the-geometry-of-a-typical-corrosion-defect.png"
+st.image(htp, caption="Fig. 1: Schematic of corrosion defect geometry")
+
 # Sidebar Inputs
 st.sidebar.header("User Input Parameters")
 def user_input_features():
