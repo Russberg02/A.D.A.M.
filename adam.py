@@ -7,100 +7,257 @@ import math as m
 from PIL import Image
 import os
 from glob import glob
+import matplotlib.pyplot as plt # Import matplotlib
 
-st.set_page_config(layout="wide")
-st.title("Advanced corrodeD pipe structurAl integrity systeM (ADAM)")
+st.header("Advanced corrodeD pipe structurAl integrity systeM (ADAM)")
 
-# IMAGE
-htp = "https://www.researchgate.net/profile/Changqing-Gong/publication/313456917/figure/fig1/AS:573308992266241@1513698923813/Schematic-illustration-of-the-geometry-of-a-typical-corrosion-defect.png"
-st.image(htp, caption="Fig. 1: Schematic of corrosion defect geometry")
+st.subheader('Dimensional Parameters')
+htp="https://www.researchgate.net/profile/Changqing-Gong/publication/313456917/figure/fig1/AS:573308992266241@1513698923813/Schematic-illustration-of-the-geometry-of-a-typical-corrosion-defect.png"
+st.image(htp, caption= "Fig. 1: Schematic illustration of the geometry of a typical corrosion defect.")
 
-# Sidebar Inputs
-st.sidebar.header("User Input Parameters")
+st.sidebar.header('User Input Parameters')
+
 def user_input_features():
-    t = st.sidebar.number_input('Pipe Thickness, t (mm)', value=10.0)
-    D = st.sidebar.number_input('Pipe Diameter, D (mm)', value=100.0)
-    L = st.sidebar.number_input('Pipe Length, L (mm)', value=1000.0)
-    Lc = st.sidebar.number_input('Corrosion Length, Lc (mm)', value=100.0)
-    Dc = st.sidebar.number_input('Corrosion Depth, Dc (mm)', value=5.0)
-    Sy = st.sidebar.number_input('Yield Stress, Sy (MPa)', value=300.0)
-    UTS = st.sidebar.number_input('Ultimate Tensile Strength, UTS (MPa)', value=450.0)
-    Pop_Max = st.sidebar.slider('Max Operating Pressure, Pmax (MPa)', 0, 50, 20)
-    Pop_Min = st.sidebar.slider('Min Operating Pressure, Pmin (MPa)', 0, 50, 10)
-    return t, D, L, Lc, Dc, Sy, UTS, Pop_Max, Pop_Min
+    pipe_thickness = st.sidebar.number_input('Pipe Thickness, t (mm)', value = 0.01)
+    pipe_diameter = st.sidebar.number_input('Pipe Diameter, D (mm)', value = 0.01)
+    pipe_length = st.sidebar.number_input('Pipe Length, L (mm)', value = 0.01)
+    corrosion_length = st.sidebar.number_input('Corrosion Length, Lc (mm)', value = 0.01)
+    corrosion_depth = st.sidebar.number_input('Corrosion Depth, Dc (mm)', value = 0.01)
+    Sy = st.sidebar.number_input('Yield Stress, Sy (MPa)', value = 0.01)
+    UTS = st.sidebar.number_input('Ultimate Tensile Strength, UTS (MPa)', value = 0.01)
+    Maximum_Operating_Pressure = st.sidebar.slider('Maximum Operating Pressure, Pop, Max (MPa)', min_value=0, max_value=50, step=1)
+    Minimum_Operating_Pressure = st.sidebar.slider('Minimum Operating Pressure, Pop, Min (MPa)', min_value=0, max_value=50, step=1)
 
-t, D, L, Lc, Dc, Sy, UTS, Pop_Max, Pop_Min = user_input_features()
+    data = {'t (mm)': pipe_thickness,
+            'D (mm)': pipe_diameter,
+            'L (mm)': pipe_length,
+            'Lc (mm)': corrosion_length,
+            'Dc (mm)': corrosion_depth,
+            'UTS (MPa)': UTS,
+            'Sy (MPa)': Sy,
+            'Pop_Max (MPa)': Maximum_Operating_Pressure,
+            'Pop_Min (MPa)': Minimum_Operating_Pressure}
+    features = pd.DataFrame(data, index=[0])
+    return features
 
-# Calculations
-Pvm = 4 * t * UTS / (m.sqrt(3) * D)
-PTresca = 2 * t * UTS / D
-M = m.sqrt(1 + 0.8 * (L / m.sqrt(D * t)))
-if L < m.sqrt(20 * D * t):
-    P_ASME_B31G = (2 * t * UTS / D) * (1 - (2/3)*(Dc/t)) / (1 - (2/3)*(Dc/t)/M)
-else:
-    P_ASME_B31G = (2 * t * UTS / D) * (1 - (Dc/t))
+df = user_input_features()
 
-Q = m.sqrt(1 + 0.31 * (Lc**2) / (D * t))
-P_DnV = (2 * UTS * t / (D - t)) * ((1 - Dc/t) / (1 - Dc/(t * Q)))
-P_PCORRC = (2 * t * UTS / D) * (1 - Dc/t)
+t=df['t (mm)'].values.item()
+D=df['D (mm)'].values.item()
+L=df['L (mm)'].values.item()
+Lc=df['Lc (mm)'].values.item()
+Dc=df['Dc (mm)'].values.item()
+UTS=df['UTS (MPa)'].values.item()
+Sy=df['Sy (MPa)'].values.item()
+Pop_Max=df['Pop_Max (MPa)'].values.item()
+Pop_Min=df['Pop_Min (MPa)'].values.item()
 
-# Display results
-st.subheader("Burst Pressure Results")
-df_pressures = pd.DataFrame({
-    "Method": ["Von Mises", "Tresca", "ASME B31G", "DnV", "PCORRC"],
-    "Burst Pressure (MPa)": [Pvm, PTresca, P_ASME_B31G, P_DnV, P_PCORRC]
-})
-st.dataframe(df_pressures)
+st.subheader('Nomenclature')
+st.write('t is the pipe thickness; D is the pipe diameter; L is the pipe length (i.e., by default = 1000 mm); Lc is the corrosion length; Dc is the corrosion depth; Sy is the pipe material yield stress; UTS is the pipe material Ultimate Tensile Strength.')
 
-st.bar_chart(df_pressures.set_index("Method"))
+# Calculate burst pressure of intact pipe P Von Mises
+Pvm = 4*t*UTS/(m.sqrt(3)*D)
 
-# Von Mises Stresses
-P1max = Pop_Max * D / (2 * t)
-P2max = Pop_Max * D / (4 * t)
-P1min = Pop_Min * D / (2 * t)
-P2min = Pop_Min * D / (4 * t)
+# Calculate burst pressure of intact pipe P Tresca
+PTresca = 2*t*UTS/(D)
 
-σ_vm_max = (1 / m.sqrt(2)) * m.sqrt((P1max - P2max)**2 + (P2max)**2 + (P1max)**2)
-σ_vm_min = (1 / m.sqrt(2)) * m.sqrt((P1min - P2min)**2 + (P2min)**2 + (P1min)**2)
+# Calculate burst pressure of corroded pipe P ASME B31G (2013)
+M = m.sqrt(1+0.8*(L/(m.sqrt(D*t)))) #Folias factor
 
-# Fatigue Criteria Values
-σ_a = (σ_vm_max - σ_vm_min) / 2
-σ_m = (σ_vm_max + σ_vm_min) / 2
-Se = 0.5 * UTS
-SF = 1
+if L < m.sqrt(20*D*t):
+    P_ASME_B31G = (2*t*UTS/D)*(1-(2/3)*(Dc/t)/1-(2/3)*(Dc/t)/M)
 
-goodman = (σ_a / (Se / SF)) + (σ_m / UTS)
-gerber = (σ_m / UTS)**2 + (σ_a / Se)
-soderberg = (σ_a / Se) + (σ_m / Sy)
-morrow = (σ_a / Se) + (σ_m / SF)
+elif L > m.sqrt(20*D*t):
+    P_ASME_B31G = (2*t*UTS/D)*(1-(Dc/t))
 
-fatigue_results = pd.DataFrame({
-    "Criterion": ["Goodman", "Gerber", "Soderberg", "Morrow"],
-    "Value": [goodman, gerber, soderberg, morrow]
-})
-st.subheader("Fatigue Criteria Values")
-st.dataframe(fatigue_results)
+# Calculate burst pressure of corroded pipe PDnV
+Q = m.sqrt(1+0.31*(Lc)**2/D*t) #Q is the curved fit of FEA results
+P_DnV = (2*UTS*t/D-t)*((1-(Dc/t))/(1-(Dc/(t*Q))))
 
-st.subheader("Fatigue Criteria Comparison")
-st.bar_chart(fatigue_results.set_index("Criterion"))
+# Calculate burst pressure of corroded pipe P PCORRC Model
+P_PCORRC = (2*t*UTS/D)*(1-Dc/t)
 
-# Goodman, Gerber, Soderberg, Morrow Graph
-sigma_a_vals = np.linspace(0, Se * 1.2, 300)
-goodman_m = UTS * (1 - sigma_a_vals / Se)
-gerber_m = UTS * np.sqrt(np.clip(1 - (sigma_a_vals / Se)**2, 0, None))
-soderberg_m = Sy * (1 - sigma_a_vals / Se)
-morrow_m = UTS * (1 - sigma_a_vals / Se)
+user_input={'t (mm)': "{:.2f}".format(t),
+            'D (mm)': "{:.2f}".format(D),
+            'L (mm)': "{:.2f}".format(L),
+            'Lc (mm)': "{:.2f}".format(Lc),
+            'Dc (mm)': "{:.2f}".format(Dc),
+            'UTS (MPa)': "{:.2f}".format(UTS),
+            'Sy (MPa)': "{:.2f}".format(Sy),
+            'Pop_Max (MPa)': "{:.2f}".format(Pop_Max),
+            'Pop_Min (MPa)': "{:.2f}".format(Pop_Min)}
+user_input_df=pd.DataFrame(user_input, index=[0])
+st.subheader('User Input Parameters')
+st.write(user_input_df)
 
-fig, ax = plt.subplots(figsize=(10, 6))
-safe_limit = np.minimum.reduce([goodman_m, gerber_m, soderberg_m, morrow_m])
-ax.fill_between(sigma_a_vals, 0, safe_limit, color='green', alpha=0.1, label='Safe Region')
-ax.plot(sigma_a_vals, goodman_m, label='Goodman', color='blue', linewidth=2)
-ax.plot(sigma_a_vals, gerber_m, label='Gerber', color='red', linewidth=2)
-ax.plot(sigma_a_vals, soderberg_m, label='Soderberg', color='orange', linewidth=2)
-ax.plot(sigma_a_vals, morrow_m, label='Morrow (approx)', color='purple', linestyle='--', linewidth=2)
-ax.set_xlabel("Alternating Stress σₐ (MPa)")
-ax.set_ylabel("Mean Stress σₘ (MPa)")
+# Intact Pipe
+calculated_param={'Pvm (MPa)': "{:.2f}".format(Pvm)}
+calculated_param_df=pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Intact Pipe Burst Pressure via Von Mises')
+st.write(calculated_param_df) #Last Output for sigma_VM_Pipe_Min_Operating_Pressure
+
+# Corroded Pipe
+calculated_param={'P_ASME_B31G (MPa)': "{:.2f}".format(P_ASME_B31G)}
+calculated_param_df=pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Corroded Pipe Burst Pressure via ASME_B31G')
+st.write(calculated_param_df)
+
+calculated_param={'P_DnV (MPa)': "{:.2f}".format(P_DnV)}
+calculated_param_df=pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Corrorded Pipe Burst Pressure via DnV')
+st.write(calculated_param_df)
+
+calculated_param={'P_PCORRC (MPa)': "{:.2f}".format(P_PCORRC)}
+calculated_param_df=pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Corrorded Pipe Burst Pressure via PCORRC')
+st.write(calculated_param_df)
+
+Pressure = [Pvm, PTresca, P_ASME_B31G, P_DnV, P_PCORRC]
+index = ["Pvm (MPa)", "PTresca (MPa)", "P_ASME_B31G (MPa)", "P_DnV (MPa)", "P_PCORRC (MPa)"]
+df = pd.DataFrame({"Burst Pressure (MPa)": Pressure}, index=index)
+
+#st.pyplot(df.plot.barh(stacked=True).figure)
+
+# Principle stresses for Maximum Operating Pressure
+P1max = Pop_Max*D/(2*t)
+P2max = Pop_Max*D/(4*t)
+P3max = 0
+
+# Principle stresses for Minimum Operating Pressure
+P1min = Pop_Min*D/(2*t)
+P2min = Pop_Min*D/(4*t)
+P3min = 0
+
+# VM stress Max and Min Operating Pressure
+Sigma_VM_Pipe_Max_Operating_Pressure = (1/m.sqrt(2))*((P1max-P2max)**2+(P2max-P3max)**2+(P3max-P1max)**2)**0.5
+
+Sigma_VM_Pipe_Min_Operating_Pressure = 1/m.sqrt(2)*m.sqrt((P1min-P2min)**2+(P2min-P3min)**2+(P3min-P1min)**2)
+
+sigma_a = (Sigma_VM_Pipe_Max_Operating_Pressure - Sigma_VM_Pipe_Min_Operating_Pressure) / 2
+sigma_m = (Sigma_VM_Pipe_Max_Operating_Pressure + Sigma_VM_Pipe_Min_Operating_Pressure) / 2
+Se = 0.5 * UTS  # Assumed endurance limit
+
+# Goodman Criterion PART 2 Experiment
+Goodman_Value = (sigma_a / Se) + (sigma_m / UTS)
+Goodman_Safe = Goodman_Value <= 1
+
+# Soderberg Criterion
+Soderberg_Value = (sigma_a / Se) + (sigma_m / Sy)
+Soderberg_Safe = Soderberg_Value <= 1
+
+# Gerber Criterion
+Gerber_Value = (sigma_a / Se) + ((sigma_m / UTS) ** 2)
+Gerber_Safe = Gerber_Value <= 1
+
+# Morrow Criterion (more accurate for mean stress effect at high strains)
+# Morrow equation: σa = Se*(1 - σm/UTS)
+Morrow_sigma_a_allow = Se * (1 - (sigma_m / UTS))
+Morrow_Safe = sigma_a <= Morrow_sigma_a_allow
+
+
+
+# Display stress parameters first
+calculated_param = {
+    'Alternating Stress, σa (MPa)': "{:.2f}".format(sigma_a),
+    'Mean Stress, σm (MPa)': "{:.2f}".format(sigma_m),
+    'Endurance Limit, Se (MPa)': "{:.2f}".format(Se)
+}
+calculated_param_df = pd.DataFrame(calculated_param, index=[0])
+st.subheader('Fatigue Stress Parameters')
+st.write(calculated_param_df)
+
+# Display Goodman result
+calculated_param = {
+    'Goodman Value': "{:.3f}".format(Goodman_Value)
+}
+calculated_param_df = pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Corroded Pipe Burst Pressure via Goodman')
+st.write(calculated_param_df)
+
+# Display Soderberg result
+calculated_param = {
+    'Soderberg Value': "{:.3f}".format(Soderberg_Value)
+}
+calculated_param_df = pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Corroded Pipe Burst Pressure via Soderberg')
+st.write(calculated_param_df)
+
+# Display Gerber result
+calculated_param = {
+    'Gerber Value': "{:.3f}".format(Gerber_Value)
+}
+calculated_param_df = pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Corroded Pipe Burst Pressure via Gerber')
+st.write(calculated_param_df)
+
+# Display Morrow result
+calculated_param = {
+    'Morrow Allowable σa (MPa)': "{:.2f}".format(Morrow_sigma_a_allow)
+}
+calculated_param_df = pd.DataFrame(calculated_param, index=[0])
+st.subheader('Calculated Corroded Pipe Burst Pressure via Morrow')
+st.write(calculated_param_df)
+
+calculated_param={'Sigma_VM_Pipe_Max_Operating_Pressure (MPa)': "{:.2f}".format(Sigma_VM_Pipe_Max_Operating_Pressure)}
+calculated_param_df=pd.DataFrame(calculated_param, index=[0])
+st.subheader('Von Mises stress of Maximum Operating Pressure')
+st.write(calculated_param_df)
+
+calculated_param={'Sigma_VM_Pipe_Min_Operating_Pressure (MPa)': "{:.2f}".format(Sigma_VM_Pipe_Min_Operating_Pressure)}
+calculated_param_df=pd.DataFrame(calculated_param, index=[0])
+st.subheader('Von Mises stress of Minimum Operating Pressure')
+st.write(calculated_param_df)
+
+#Stresses = [Sigma_VM_Pipe_Max_Operating_Pressure, Sigma_VM_Pipe_Min_Operating_Pressure, Sy, UTS]
+#index = ["Svm_Max (MPa)", "Svm_Min (MPa)", "Yield Stress (MPa)", "UTS (MPa)"]
+Stresses = [Sigma_VM_Pipe_Max_Operating_Pressure, Sigma_VM_Pipe_Min_Operating_Pressure, sigma_a, sigma_m, Se, Sy, UTS]
+index = ["Svm_Max (MPa)", "Svm_Min (MPa)", "σa (MPa)", "σm (MPa)", "Se (MPa)", "Yield Stress (MPa)", "UTS (MPa)"]
+df = pd.DataFrame({"Stresses (MPa)": Stresses}, index=index)
+
+#st.pyplot(df.plot.barh(color={"Stresses (MPa)": "red"}, stacked=True).figure)
+
+# Create a plot to visualize the fatigue criteria
+fig, ax = plt.subplots(figsize=(8, 6))  # Adjust figure size as needed
+
+# Plot Goodman line
+sigma_m_vals = np.linspace(0, UTS, 100)
+sigma_a_Goodman = Se * (1 - sigma_m_vals / UTS)
+ax.plot(sigma_m_vals, sigma_a_Goodman, label="Goodman", color='blue')
+
+# Plot Soderberg line
+sigma_a_Soderberg = Se * (1 - sigma_m_vals / Sy)
+ax.plot(sigma_m_vals, sigma_a_Soderberg, label="Soderberg", color='green')
+
+# Plot Gerber parabola
+sigma_a_Gerber = Se * (1 - (sigma_m_vals / UTS) ** 2)
+ax.plot(sigma_m_vals, sigma_a_Gerber, label="Gerber", color='red')
+
+# Plot Morrow line.  Morrow line is the same as Goodman
+#sigma_a_Morrow = Se * (1 - sigma_m_vals / UTS)
+#ax.plot(sigma_m_vals, sigma_a_Morrow, label="Morrow", color='purple')
+
+# Plot the operating point (sigma_m, sigma_a)
+ax.scatter(sigma_m, sigma_a, color='black', marker='o', label="Operating Point")
+
+# Add labels and title
+ax.set_xlabel("Mean Stress, σm (MPa)")
+ax.set_ylabel("Alternating Stress, σa (MPa)")
 ax.set_title("Fatigue Failure Criteria")
 ax.legend()
 ax.grid(True)
-st.pyplot(fig)
+
+# Set the limits of the axes
+ax.set_xlim(0, UTS + 10)  # Extend x-axis slightly beyond UTS
+ax.set_ylim(0, Se + 10)    # Extend y-axis slightly beyond Se
+
+# Add text annotations for the safety factors.
+# Position these annotations relative to the plot limits.
+x_pos = UTS + 5 #  Position the text near the right edge
+y_pos_Goodman = Se * 0.7
+y_pos_Soderberg = Se * 0.6
+y_pos_Gerber = Se * 0.5
+
+ax.text(x_pos, y_pos_Goodman, f"Goodman: {Goodman_Value:.2f}", color='blue', ha='left', va='center')
+ax.text(x_pos, y_pos_Soderberg, f"Soderberg: {Soderberg_Value:.2f}", color='green', ha='left', va='center')
+ax.text(x_pos, y_pos_Gerber, f"Gerber: {Gerber_Value:.2f}", color='red', ha='left', va='center')
+st.pyplot(fig) #Display the plot
